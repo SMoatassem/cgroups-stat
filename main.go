@@ -8,9 +8,9 @@ import (
 )
 
 type record struct {
-	absolute_path string;
+	absolutePath string;
 	pids []int;
-	available_controllers []string;
+	availableControllers []string;
 }
 
 func parse_directory(path string, depth int, records []record) []record {
@@ -21,7 +21,7 @@ func parse_directory(path string, depth int, records []record) []record {
 		return records
 	}
 
-	var current_record record = record{}
+	var currentRecord record = record{}
 	var controllers = []string{}
 	var pids = []int{}
 
@@ -31,11 +31,11 @@ func parse_directory(path string, depth int, records []record) []record {
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 	} else {
-		pids_str := strings.Fields(string(content))
+		pidsStr := strings.Fields(string(content))
 		fmt.Printf("============= LE CONTENU DE CGROUP.PROCS POUR %v EST:\n %v\n\n", path, string(content))
-		for _ ,pid := range(pids_str) {
-			pid_int, _ := strconv.Atoi(pid)
-			pids = append(pids, pid_int)
+		for _ ,pid := range(pidsStr) {
+			pidInt, _ := strconv.Atoi(pid)
+			pids = append(pids, pidInt)
 		}
 	}
 
@@ -57,11 +57,11 @@ func parse_directory(path string, depth int, records []record) []record {
 		}
 	}
 	
-	current_record.pids = pids
-	current_record.absolute_path = path
-	current_record.available_controllers = controllers
+	currentRecord.pids = pids
+	currentRecord.absolutePath = path
+	currentRecord.availableControllers = controllers
 
-	records = append(records, current_record)
+	records = append(records, currentRecord)
 	
 	return records
 }
