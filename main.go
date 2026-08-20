@@ -198,9 +198,12 @@ func computeRates(prev []record, curr []record) []sample {
 	var prevMap map[string]record = make(map[string]record)
 	var currMap map[string]record = make(map[string]record)
 
-	for i := range prev {
-		prevMap[prev[i].absolutePath] = prev[i]
-		currMap[curr[i].absolutePath] = curr[i]
+	for _,v := range prev {
+		prevMap[v.absolutePath] = v
+	}
+
+	for _,v := range curr {
+		currMap[v.absolutePath] = v
 	}
 
 	samples := []sample{}
@@ -318,9 +321,17 @@ func main() {
 			fmt.Println(v)
 		}
 	}
-	time.Sleep(time.Second)
-	curr := parseDirectory(dir, 1, records, *tree, *verbose)
+	
+	for {
+		time.Sleep(time.Second)
+		curr := parseDirectory(dir, 1, records, *tree, *verbose)
+		
+		samples := computeRates(prev, curr)
+		printSamples(samples, dir, *sortKey)
+	
+		prev = curr
+	}
+	
 
-	samples := computeRates(prev, curr)
-	printSamples(samples, dir, *sortKey)
+	
 }
