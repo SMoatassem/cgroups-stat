@@ -218,8 +218,8 @@ func computeRates(prev []record, curr []record) []sample {
 		newSample.memoryCurrent = currentRecord.memoryCurrent
 		if currentRecord.hasCPUQuota {
 			newSample.quotaFrac = float64(currentRecord.cpuQuota) / float64(currentRecord.cpuPeriod)
-			if currentRecord.cpuStat["nrThrottled"] > 0 {
-				newSample.throttledPeriods = float64(currentRecord.cpuStat["nrPeriods"]) / float64(currentRecord.cpuStat["nrThrottled"])
+			if currentRecord.cpuStat["nrPeriods"] > 0 {
+				newSample.throttledPeriods = float64(currentRecord.cpuStat["nrThrottled"]) / float64(currentRecord.cpuStat["nrPeriods"])
 			}
 
 		}
@@ -311,6 +311,8 @@ func main() {
 	sortKey := flag.String("sort", "cores", "Sort table by: cores | throttle | periods | memory")
 	flag.Parse()
 
+	const clearScreen = "\033[H\033[2J\033[3J"
+
 	var dir string = *path
 
 	records := []record{}
@@ -327,6 +329,8 @@ func main() {
 		curr := parseDirectory(dir, 1, records, *tree, *verbose)
 		
 		samples := computeRates(prev, curr)
+		
+		fmt.Print(clearScreen)
 		printSamples(samples, dir, *sortKey)
 	
 		prev = curr
