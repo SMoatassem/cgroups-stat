@@ -10,6 +10,16 @@ import (
 	"time"
 )
 
+type sample struct {
+    path          string
+    coresUsed     float64
+    throttledFrac float64
+	throttledPeriods float64
+    memoryCurrent int64
+    quotaFrac     float64  // only when hasCPUQuota
+    hasRate       bool     // false when no previous snapshot existed
+}
+
 type record struct {
 	absolutePath         string
 	pids                 []int
@@ -128,6 +138,10 @@ func parseDirectory(path string, depth int, records []record, treeOpt bool, vOpt
 						value, _ := strconv.ParseInt(splittedLine[1], 10, 64)
 						cpuStatRecord["nrThrottled"] = value
 					
+					case "nr_periods":
+						value, _ := strconv.ParseInt(splittedLine[1], 10, 64)
+						cpuStatRecord["nrPeriods"] = value	
+
 					case "throttled_usec":
 						value, _ := strconv.ParseInt(splittedLine[1], 10, 64)
 						cpuStatRecord["throttledUsec"] = value
@@ -166,6 +180,52 @@ func parseDirectory(path string, depth int, records []record, treeOpt bool, vOpt
 	return records
 }
 
+func computeRates(prev []record, curr []record) []sample {
+	// Convert slices to maps to facilitate lookup rather than a opt for a nested loop
+	var prevMap map[string]record = make(map[string]record)
+	var currMap map[string]record = make(map[string]record)
+
+	for i := range(prev) {
+		prevMap[prev[i].absolutePath] = prev[i]
+		currMap[curr[i].absolutePath] = curr[i]
+	}
+	
+	samples := []sample{}
+	for key, value := range currMap {
+		newSample := sample{}
+
+		currentRecord := value
+		prevRecord, ok := prevMap[key]
+		
+		newSample.path = key
+		newSample.hasRate = ok
+		newSample.memoryCurrent = currentRecord.memoryCurrent
+		if currentRecord.hasCPUQuota {
+			newSample.quotaFrac = float64(currentRecord.cpuQuota) / float64(currentRecord.cpuPeriod)
+			if currentRecord.cpuStat["nrThrottled"] > 0 {
+				newSample.throttledPeriods = float64(currentRecord.cpuStat["nrPeriods"])/float64(currentRecord.cpuStat["nrThrottled"])
+			}
+			
+			
+		} 
+		
+		if ok {
+			deltaUsec := (currentRecord.timestamp - prevRecord.timestamp)*1000
+			deltaUsage := currentRecord.cpuStat["usageUsec"] - prevRecord.cpuStat["usageUsec"]
+			newSample.coresUsed = float64(deltaUsage)/float64(deltaUsec)
+
+			deltaThrottled := (currentRecord.cpuStat["throttledUsec"] - prevRecord.cpuStat["throttledUsec"])
+			newSample.throttledFrac = float64(deltaThrottled)/float64(deltaUsec)
+		}
+		
+		samples = append(samples, newSample)
+		
+	}
+	return samples
+}
+
+
+
 func main() {
 	tree := flag.Bool("tree", false, "View the cgroup hierarchy as a tree")
 	path := flag.String("path", "/sys/fs/cgroup", "Modify the starting point of parsing")
@@ -176,8 +236,17 @@ func main() {
 
 	records := []record{}
 
-	records = parseDirectory(dir, 1, records, *tree, *verbose)
-	for _, v := range records {
+	prev := parseDirectory(dir, 1, records, *tree, *verbose)
+	for _, v := range prev {
 		fmt.Println(v)
+	}
+	time.Sleep(time.Second)
+	curr := parseDirectory(dir, 1, records, *tree, *verbose)
+
+	samples := computeRates(prev, curr)
+
+	fmt.Println("================== SAMPLES CONTENT ================== ")
+	for _, sample := range(samples) {
+		fmt.Println(sample)
 	}
 }
