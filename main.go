@@ -218,19 +218,21 @@ func computeRates(prev []record, curr []record) []sample {
 		newSample.memoryCurrent = currentRecord.memoryCurrent
 		if currentRecord.hasCPUQuota {
 			newSample.quotaFrac = float64(currentRecord.cpuQuota) / float64(currentRecord.cpuPeriod)
-			if currentRecord.cpuStat["nrPeriods"] > 0 {
-				newSample.throttledPeriods = float64(currentRecord.cpuStat["nrThrottled"]) / float64(currentRecord.cpuStat["nrPeriods"])
-			}
-
 		}
 
 		if ok {
 			deltaUsec := (currentRecord.timestamp - prevRecord.timestamp) * 1000
 			deltaUsage := currentRecord.cpuStat["usageUsec"] - prevRecord.cpuStat["usageUsec"]
-			newSample.coresUsed = float64(deltaUsage) / float64(deltaUsec)
+			deltaThrottled := currentRecord.cpuStat["throttledUsec"] - prevRecord.cpuStat["throttledUsec"]
+			deltaThrottledPeriods := currentRecord.cpuStat["nrThrottled"] - prevRecord.cpuStat["nrThrottled"]
+			deltaPeriods := currentRecord.cpuStat["nrPeriods"] - prevRecord.cpuStat["nrPeriods"]
 
-			deltaThrottled := (currentRecord.cpuStat["throttledUsec"] - prevRecord.cpuStat["throttledUsec"])
+			newSample.coresUsed = float64(deltaUsage) / float64(deltaUsec)
 			newSample.throttledFrac = float64(deltaThrottled) / float64(deltaUsec)
+			if deltaPeriods > 0 {
+				newSample.throttledPeriods = float64(deltaThrottledPeriods) / float64(deltaPeriods)
+			}
+
 		}
 
 		samples = append(samples, newSample)
