@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -273,7 +274,7 @@ func shortenPath(path, root string) string {
 
 // printSamples renders the samples as an aligned table, sorted by sortKey
 // (cores | throttle | periods | memory), most-notable first.
-func printSamples(samples []sample, root, sortKey string) {
+func printSamples(samples []sample, root, sortKey string, maxLines int) {
 	sort.Slice(samples, func(i, j int) bool {
 		switch sortKey {
 		case "throttle":
@@ -289,8 +290,9 @@ func printSamples(samples []sample, root, sortKey string) {
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 	fmt.Fprintln(w, "CGROUP\tCORES\tQUOTA\tTHROTTLE%\tTHR_PERIODS\tMEMORY")
-	for _, s := range samples {
+	for i := range min(len(samples), maxLines) {
 		cores, throttle := "-", "-"
+		s := samples[i]
 		if s.hasRate {
 			cores = fmt.Sprintf("%.3f", s.coresUsed)
 			throttle = fmt.Sprintf("%.1f%%", s.throttledFrac*100)
@@ -314,6 +316,7 @@ func main() {
 	path := flag.String("path", "/sys/fs/cgroup", "Modify the starting point of parsing")
 	verbose := flag.Bool("v", false, "Enable verbosity to view errors")
 	sortKey := flag.String("sort", "cores", "Sort table by: cores | throttle | periods | memory")
+	maxLines := flag.Int("n", math.MaxInt, "Change the number of lines shown in the table")
 	flag.Parse()
 
 	const clearScreen = "\033[H\033[2J\033[3J"
@@ -342,7 +345,7 @@ func main() {
 			samples := computeRates(prev, curr)
 			
 			fmt.Print(clearScreen)
-			printSamples(samples, dir, *sortKey)
+			printSamples(samples, dir, *sortKey, *maxLines)
 		
 			prev = curr
 		
