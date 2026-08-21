@@ -48,12 +48,20 @@ func ComputeRates(prev []cgroup.Record, curr []cgroup.Record) []Sample {
 			deltaThrottled := currentRecord.CpuStat["throttledUsec"] - prevRecord.CpuStat["throttledUsec"]
 			deltaThrottledPeriods := currentRecord.CpuStat["nrThrottled"] - prevRecord.CpuStat["nrThrottled"]
 			deltaPeriods := currentRecord.CpuStat["nrPeriods"] - prevRecord.CpuStat["nrPeriods"]
-
-			newSample.CoresUsed = float64(deltaUsage) / float64(deltaUsec)
-			newSample.ThrottledFrac = float64(deltaThrottled) / float64(deltaUsec)
-			if deltaPeriods > 0 {
-				newSample.ThrottledPeriods = float64(deltaThrottledPeriods) / float64(deltaPeriods)
+			
+			if deltaUsec > 0 && min(deltaUsage, deltaThrottled, deltaThrottledPeriods, deltaPeriods) >= 0 {
+				newSample.CoresUsed = float64(deltaUsage) / float64(deltaUsec)
+				newSample.ThrottledFrac = float64(deltaThrottled) / float64(deltaUsec)
+				if deltaPeriods > 0 {
+					newSample.ThrottledPeriods = float64(deltaThrottledPeriods) / float64(deltaPeriods)
+				}
+			} else {
+				// Containing having been reset per example, there is no prev
+				newSample.HasRate = false
 			}
+
+
+
 
 		}
 
