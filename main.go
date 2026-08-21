@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 )
@@ -314,6 +317,11 @@ func main() {
 	flag.Parse()
 
 	const clearScreen = "\033[H\033[2J\033[3J"
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	var dir string = *path
 
@@ -327,15 +335,20 @@ func main() {
 	}
 	
 	for {
-		time.Sleep(time.Second)
-		curr := parseDirectory(dir, 1, records, *tree, *verbose)
+		select {
+		case <- ticker.C: 
+			curr := parseDirectory(dir, 1, records, *tree, *verbose)
+			
+			samples := computeRates(prev, curr)
+			
+			fmt.Print(clearScreen)
+			printSamples(samples, dir, *sortKey)
 		
-		samples := computeRates(prev, curr)
+			prev = curr
 		
-		fmt.Print(clearScreen)
-		printSamples(samples, dir, *sortKey)
-	
-		prev = curr
+		case <- ctx.Done():
+			return
+		}
 	}
 	
 
