@@ -6,7 +6,7 @@ import (
 	"text/tabwriter"
 	"os"
 	"sort"
-	"cgroups-stat/internal/rate"
+	"github.com/SMoatassem/cgroups-stat/internal/rate"
 )
 
 // humanBytes renders a byte count in binary units (KiB, MiB, ...)

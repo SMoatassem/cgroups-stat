@@ -1,7 +1,7 @@
 package rate
 
 import (
-	"cgroups-stat/internal/cgroup"
+	"github.com/SMoatassem/cgroups-stat/internal/cgroup"
 )
 
 type Sample struct {

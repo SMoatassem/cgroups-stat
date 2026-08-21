@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-	"cgroups-stat/internal/cgroup"
-	"cgroups-stat/internal/rate"
-	"cgroups-stat/internal/output"
+	"github.com/SMoatassem/cgroups-stat/internal/cgroup"
+	"github.com/SMoatassem/cgroups-stat/internal/rate"
+	"github.com/SMoatassem/cgroups-stat/internal/output"
 )
 
 

@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"cgroups-stat/internal/cgroup"
-	"cgroups-stat/internal/rate"
+	"github.com/SMoatassem/cgroups-stat/internal/cgroup"
+	"github.com/SMoatassem/cgroups-stat/internal/rate"
 )
 
 // rec builds a minimal Record with just the CPU fields ComputeRates reads
