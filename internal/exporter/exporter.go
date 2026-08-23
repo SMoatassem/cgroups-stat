@@ -22,7 +22,7 @@ func ExportMetrics (w http.ResponseWriter, r *http.Request) {
 		switch field {
 			case "MemoryCurrent": 
 				fmt.Fprintf(w, "# HELP cgstat_memory_usage_current_bytes Current memory usage in bytes\n")
-				fmt.Fprintf(w, "# TYPE cgstat_memory_usage_current_total gauge\n")
+				fmt.Fprintf(w, "# TYPE cgstat_memory_usage_current_bytes gauge\n")
 			case "usageUsec":
 				fmt.Fprintf(w, "# HELP cgstat_cpu_usage_seconds_total Current CPU usage in seconds\n")
 				fmt.Fprintf(w, "# TYPE cgstat_cpu_usage_seconds_total counter\n")
