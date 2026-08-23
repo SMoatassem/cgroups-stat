@@ -28,6 +28,12 @@ Derived:
 
 A CPU dashboard reports this container at 9% usage against a 10% limit and calls it healthy. In reality it spends 84% of wall-clock time unable to run at all. Any request arriving during a frozen window waits for the next period boundary before it is even scheduled.
 
+![CPU throttling vs utilisation](docs/throttling.png)
+
+*The same container in Grafana: CPU utilisation flat at 0.09 cores while the
+throttled fraction sits pinned at 1.0 — every enforcement period hits the
+quota ceiling. A utilisation-only dashboard shows the bottom line and nothing else.*
+
 The sanity check: 0.0925 + 0.838 ≈ 0.93. A busy loop is either running or frozen, and those two numbers account for essentially all of its time.
 
 This matters for latency, not throughput. A batch job that gets its work done eventually is unaffected. A service answering requests takes a tail-latency hit on every request unlucky enough to land in a frozen window — and users experience the worst case, not the average.
@@ -81,11 +87,17 @@ stat -fc %T /sys/fs/cgroup
 ## Usage
 
 ```
--tree            display the hierarchy as a tree
--path <path>     restrict the walk to a subtree
--sort <key>      cores | throttle | periods | memory
--n <count>       limit rows displayed
--v               verbose
+-n int
+    Change the number of lines shown in the table (default 20)
+-path string
+    Modify the starting point of parsing (default "/sys/fs/cgroup")
+-prom
+    Enable http server for Prometheus exportation
+-sort string
+    Sort table by: cores | throttle | periods | memory (default "cores")
+-tree
+    View the cgroup hierarchy as a tree
+-v	Enable verbosity to view errors
 ```
 
 
@@ -100,6 +112,37 @@ stat -fc %T /sys/fs/cgroup
 | `memory` | `memory.current` | current charge against the group |
 
 `cores`, `throttle` and `periods` are rates derived from cumulative counters and require two reads. `memory.current` is a gauge and is read directly.
+
+## Prometheus exporter
+
+```bash
+cgroups-stat -prom          # serves /metrics on :9100
+```
+
+Exposes raw cumulative counters; rates are computed server-side by Prometheus
+via `rate()`. This inverts the CLI's approach deliberately — a scrape-time
+collector holds no state, so there is no previous snapshot to diff against
+and no shared mutable state between the HTTP handler and the collector.
+
+| metric | type |
+|---|---|
+| `cgstat_cpu_usage_seconds_total` | counter |
+| `cgstat_cpu_throttled_seconds_total` | counter |
+| `cgstat_cpu_throttled_periods_total` | counter |
+| `cgstat_cpu_periods_total` | counter |
+| `cgstat_memory_usage_current_bytes` | gauge |
+
+![Host-wide cgroup coverage](docs/host-overview.png)
+
+*Every cgroup on the host, scraped live. Container IDs appear directly in the
+cgroup path, so each container restart creates a new series — the cardinality
+trade-off of using paths as labels.*
+
+A `docker-compose.yml` brings up the exporter, Prometheus and Grafana together.
+The exporter requires `cgroup: host` — Docker's cgroup namespace otherwise
+rewrites the container's own cgroup as the root of the hierarchy, so the
+exporter sees only itself.
+
 
 ## Design notes
 
