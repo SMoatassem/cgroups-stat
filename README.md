@@ -143,6 +143,24 @@ The exporter requires `cgroup: host` — Docker's cgroup namespace otherwise
 rewrites the container's own cgroup as the root of the hierarchy, so the
 exporter sees only itself.
 
+## Kubernetes
+
+Manifests in `k8s/` deploy the exporter as a DaemonSet — one pod per node —
+alongside Prometheus and Grafana, with pod-based service discovery so targets
+are found automatically as nodes come and go.
+
+```bash
+kind create cluster --config k8s/kind.yaml
+kubectl apply -f k8s/
+kubectl port-forward svc/grafana 3000:3000
+```
+
+The Grafana dashboard is in `k8s/grafana-dashboard.json`.
+
+![Throttling across a three-node cluster](docs/k8s-throttling.png)
+
+*Throttled fraction per node on a three-node cluster.*
+
 
 ## Design notes
 
