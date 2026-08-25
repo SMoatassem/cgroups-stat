@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:latest
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+          - name: prom-config
+            mountPath: /etc/prometheus/
+      volumes:
+        - name: prom-config
+          configMap:
+            # necessite un config map, il suffit de faire
+            # kubectl create configmap prometheus-config --from-file=prometheus.yml=./prometheus.yml
+            name: prometheus-config 
