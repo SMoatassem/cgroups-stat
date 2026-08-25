@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cgroups-stat
+  labels:
+    app: cgroups-stat
+spec:
+  selector:
+    matchLabels:
+      name: cgroups-stat
+  template:
+    metadata:
+      labels:
+        name: cgroups-stat
+    spec:
+      containers:
+      - name: cgroups-stat
+        image: smoatassem/cgroups-stat:latest
+        ports:
+          - containerPort: 9100
+            name: metrics
+        volumeMounts:
+          - name: cgroup
+            mountPath: /sys/fs/cgroup
+            readOnly: true
+
+      volumes:
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
