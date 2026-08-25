@@ -150,7 +150,7 @@ alongside Prometheus and Grafana, with pod-based service discovery so targets
 are found automatically as nodes come and go.
 
 ```bash
-kind create cluster --config k8s/kind.yaml
+kind create cluster --config multi-node.yaml
 kubectl apply -f k8s/
 kubectl get pods # to get the name of the pod
 kubectl port-forward pod/grafana-XXX 3000:3000
