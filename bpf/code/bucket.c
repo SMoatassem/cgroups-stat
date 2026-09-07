@@ -26,6 +26,31 @@ struct {
     __type(value, u64); // The timestamp when it becomes runnable and starts waiting for CPU time
 } runb_tstmp SEC(".maps");
 
+
+// Copied from libbpf-tools repo
+static __always_inline u64 log2_u32(u32 v)
+{
+    u32 shift, r;
+
+    r     = (v > 0xFFFF) << 4; v >>= r;
+    shift = (v > 0xFF)   << 3; v >>= shift; r |= shift;
+    shift = (v > 0xF)    << 2; v >>= shift; r |= shift;
+    shift = (v > 0x3)    << 1; v >>= shift; r |= shift;
+    r |= (v >> 1);
+
+    return r;
+}
+
+static __always_inline u64 log2_u64(u64 v)
+{
+    u32 hi = v >> 32;
+
+    if (hi)
+        return log2_u32(hi) + 32;
+    return log2_u32(v);
+}
+
+
 /*
 BPF_PROGS allows us to directly get the elements of the array given by the kernel in the declared
 arguments rather than keep splitting the array and casting the results to the corresponding format
@@ -105,10 +130,7 @@ int BPF_PROG(fill_hist, bool preempt, struct task_struct *prev,
     }
     u64 cgroup = BPF_CORE_READ(next, cgroups, dfl_cgrp, kn, id);
 
-    // clzll is a built in function in the compiler
-    // that counts the number of leading zeros, 63 minus x
-    // thus happens to be exactly log_2(x) 
-    bucket = 63 - __builtin_clzll(wait_time);
+    bucket = log2_u64(wait_time);
     
     // memset is essential here because sizeof(couple) = 16
     // and we would have 4 bytes of padding that can contain
@@ -126,6 +148,8 @@ int BPF_PROG(fill_hist, bool preempt, struct task_struct *prev,
         bpf_map_update_elem(&runq_hist, &couple, &one, BPF_ANY);
     }
 
+
+    bpf_printk("pid=%d wait=%llu cgid=%llu\n", pid_next, wait_time, cgroup);
 
     return 0;
 }
