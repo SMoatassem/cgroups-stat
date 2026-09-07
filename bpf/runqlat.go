@@ -4,7 +4,11 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
+	"path/filepath"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/cilium/ebpf"
@@ -22,6 +26,28 @@ type RunbTstmp struct {
 	Key uint32
 	Value uint64
 }
+
+func buildCgroupIdx(root string) (map[uint64]string ,error) {
+	res := make(map[uint64]string)
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		
+		if err != nil || !d.IsDir() {
+			return nil
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+
+		st := info.Sys().(*syscall.Stat_t)
+		res[st.Ino] = strings.TrimPrefix(path, root)
+		return nil
+	})
+
+	return res, err
+}
+
 
 func main() {
 
