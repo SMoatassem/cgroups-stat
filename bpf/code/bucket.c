@@ -148,9 +148,6 @@ int BPF_PROG(fill_hist, bool preempt, struct task_struct *prev,
         bpf_map_update_elem(&runq_hist, &couple, &one, BPF_ANY);
     }
 
-
-    bpf_printk("pid=%d wait=%llu cgid=%llu\n", pid_next, wait_time, cgroup);
-
     return 0;
 }
 
