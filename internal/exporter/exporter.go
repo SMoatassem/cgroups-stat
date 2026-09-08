@@ -3,13 +3,86 @@ package exporter
 import (
 	"fmt"
 	"net/http"
+	"math"
 
+	"github.com/SMoatassem/cgroups-stat/internal/bpf"
 	"github.com/SMoatassem/cgroups-stat/internal/cgroup"
 )
 
-func ExportMetrics (w http.ResponseWriter, r *http.Request) {
+func bucketBound(n int) float64 {
+    return math.Ldexp(1, n) / 1e9  // 2^n nanoseconds, in seconds
+}
+
+func gather(rObjs bpf.RunqObj) (map[uint64]*[64]uint64, error) {
+
+	res := make(map[uint64]*[64]uint64)
+	objs := rObjs.Objs
+	var key bpf.HistKey;
+	var val uint64;
+
+
+	iterator := objs.RunqHist.Iterate()
+	for iterator.Next(&key, &val) {
+		cgid := key.CgroupId
+		bucket := key.Bucket
+		
+		if bucket >= 64 {
+			continue
+		}
+		arr, ok := res[cgid]
+		if !ok {
+			arr = &[64]uint64{}
+			res[cgid] = arr
+		}
+		arr[bucket] = val
+	}
 	
-	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	if err := iterator.Err(); err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func ExportRunQLat (w http.ResponseWriter, r *http.Request, rObjs bpf.RunqObj) (error) {
+	mapHis, _ := gather(rObjs)
+	index, err := bpf.BuildCgroupIdx("/sys/fs/cgroup")
+
+	if err != nil {
+		return err
+	}
+    fmt.Fprintln(w, "# HELP runqueue_latency_seconds Time tasks spent runnable before being scheduled.")
+    fmt.Fprintln(w, "# TYPE runqueue_latency_seconds histogram")
+
+    for cgid, arr := range mapHis {
+        name, ok := index[cgid]
+        if !ok {
+            name = fmt.Sprintf("unknown-%d", cgid)
+        }
+
+        var cumulative uint64
+        var sum float64
+
+        for n := 0; n < 64; n++ {
+            bound := bucketBound(n)
+            cumulative += arr[n]
+			// we approximate the sum, given that we lose its
+			// information when we put it in a bucket
+            sum += float64(arr[n]) * bound
+
+            fmt.Fprintf(w, "runqueue_latency_seconds_bucket{cgroup=%q,le=\"%g\"} %d\n",
+                name, bound, cumulative)
+        }
+
+        fmt.Fprintf(w, "runqueue_latency_seconds_bucket{cgroup=%q,le=\"+Inf\"} %d\n", name, cumulative)
+        fmt.Fprintf(w, "runqueue_latency_seconds_sum{cgroup=%q} %g\n", name, sum)
+        fmt.Fprintf(w, "runqueue_latency_seconds_count{cgroup=%q} %d\n", name, cumulative)
+    }
+
+    return nil
+}
+
+func ExportMetrics (w http.ResponseWriter, r *http.Request) {
 
 	records := []cgroup.Record{}
 	fields := []string{"MemoryCurrent", "usageUsec", "throttledUsec", "nrThrottled", "nrPeriods"}
@@ -69,4 +142,12 @@ func ExportMetrics (w http.ResponseWriter, r *http.Request) {
 		}
 		fmt.Fprintf(w, "\n")
 	}
+}
+
+
+func ExporterWrapper(w http.ResponseWriter, r *http.Request, rObjs bpf.RunqObj) {
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+
+	ExportMetrics(w, r)
+	ExportRunQLat(w, r, rObjs)
 }

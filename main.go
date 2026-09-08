@@ -15,6 +15,7 @@ import (
 	"github.com/SMoatassem/cgroups-stat/internal/exporter"
 	"github.com/SMoatassem/cgroups-stat/internal/output"
 	"github.com/SMoatassem/cgroups-stat/internal/rate"
+	"github.com/SMoatassem/cgroups-stat/internal/bpf"
 )
 
 
@@ -65,10 +66,17 @@ func main() {
 			}
 		}
 	} else {
+		rObjs, err := bpf.InitEbpfRunQ()
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		mux := http.NewServeMux()
-		mux.HandleFunc("/metrics", exporter.ExportMetrics)
+		mux.HandleFunc("/metrics", func(w http.ResponseWriter ,r *http.Request){
+			exporter.ExporterWrapper(w, r, rObjs)
+		})
 		srv := &http.Server{
-			Addr:              ":9100",
+			Addr:              ":9101",
 			Handler:           mux,
 			ReadHeaderTimeout: 5 * time.Second,
 		}
@@ -88,6 +96,10 @@ func main() {
 
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		defer rObjs.Objs.Close()
+		for _, l := range(rObjs.Links) {
+			defer l.Close()
+		}
 		_ = srv.Shutdown(shutdownCtx)
 	}
 

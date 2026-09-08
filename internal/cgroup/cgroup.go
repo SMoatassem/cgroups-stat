@@ -173,8 +173,12 @@ func ParseDirectory(path string, depth int, records []Record, treeOpt bool, vOpt
 		}
 	}
 
+	relativePath := strings.TrimPrefix(path, "/sys/fs/cgroup")
+	if relativePath == "" {
+		relativePath = "/"
+	}
 	currentRecord.Pids = pids
-	currentRecord.AbsolutePath = path
+	currentRecord.AbsolutePath = relativePath
 	currentRecord.AvailableControllers = controllers
 	currentRecord.HasChildren = hasChildren
 	currentRecord.CpuStat = cpuStatRecord

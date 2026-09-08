@@ -1,21 +1,20 @@
-package main
+package bpf
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -cflags "-O2 -g -Wall" -type hist_key runqlat code/bucket.c -- -I./bpf
 
 import (
 	"fmt"
 	"io/fs"
-	"log"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
 )
 
+type HistKey = runqlatHistKey
 
 type RunQhist struct {
 	Key runqlatHistKey
@@ -27,7 +26,15 @@ type RunbTstmp struct {
 	Value uint64
 }
 
-func buildCgroupIdx(root string) (map[uint64]string ,error) {
+type RunqObj struct {
+	Objs runqlatObjects
+	Links []link.Link
+	// We must save references to links aswell
+	// Otherwise we might lose them due to the 
+	// Go garbage collector
+}
+
+func BuildCgroupIdx(root string) (map[uint64]string ,error) {
 	res := make(map[uint64]string)
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		
@@ -41,7 +48,11 @@ func buildCgroupIdx(root string) (map[uint64]string ,error) {
 		}
 
 		st := info.Sys().(*syscall.Stat_t)
-		res[st.Ino] = strings.TrimPrefix(path, root)
+		name := strings.TrimPrefix(path, root)
+		if name == "" {
+			name = "/"
+		}
+		res[st.Ino] = name
 		return nil
 	})
 
@@ -49,17 +60,17 @@ func buildCgroupIdx(root string) (map[uint64]string ,error) {
 }
 
 
-func main() {
+func InitEbpfRunQ() (RunqObj, error){
 
 	if err := rlimit.RemoveMemlock(); err != nil {
-		log.Fatal(err)
+		return RunqObj{}, fmt.Errorf("removing memlock:%v", err)
 	}
 	
 	var objs runqlatObjects
 	if err := loadRunqlatObjects(&objs, nil); err != nil {
-		log.Fatalf("Objects loading error %v", err)
+		return RunqObj{}, fmt.Errorf("Objects loading:%v", err)
 	}
-	defer objs.Close()
+	// defer objs.Close()
 
 	programs := []*ebpf.Program{
 		objs.AddToMap,
@@ -67,27 +78,18 @@ func main() {
 		objs.FillHist,
 	}
 
+	links := []link.Link{}
 	for _, program := range(programs) {
 		l, err := link.AttachTracing(link.TracingOptions{Program: program})
 		if err != nil {
-			log.Fatal(err)
+			return RunqObj{}, fmt.Errorf("Link tracing:%v", err)
 		}
-		defer l.Close()
+		// defer l.Close()
+		links = append(links, l)
 	}
 
-	for {
-		var key runqlatHistKey;
-		var val uint64;
 
-		iterator := objs.RunqHist.Iterate()
-		for iterator.Next(&key, &val) {
-			fmt.Printf("cgroupId: %v, bucket %v: value: %v\n", key.CgroupId, key.Bucket, val)
-		}
-		if err := iterator.Err(); err != nil {
-			log.Fatal(err)
-		}
+	res := RunqObj{Objs: objs, Links: links}
 
-		time.Sleep(15 * time.Second)
-	}
-
+	return res, nil
 }

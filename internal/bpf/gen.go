@@ -1,6 +1,6 @@
-package main
+package bpf
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -cflags "-O2 -g -Wall" trace code/detect.c -- -I./bpf
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -cflags "-O2 -g -Wall" exec code/detect.c -- -I./bpf
 
 import (
 	"bytes"
@@ -18,14 +18,14 @@ type Event struct {
 	Comm [16]byte
 }
 
-func main() {
+func gen() {
 
 	if err := rlimit.RemoveMemlock(); err != nil {
 		log.Fatal(err)
 	}
 	
-	objs := traceObjects{}
-	if err := loadTraceObjects(&objs, nil); err != nil {
+	objs := execObjects{}
+	if err := loadExecObjects(&objs, nil); err != nil {
 		log.Fatalf("Objects loading error %v", err)
 	}
 	defer objs.Close()
