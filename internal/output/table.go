@@ -53,7 +53,7 @@ func PrintSamples(samples []rate.Sample, root, sortKey string, maxLines int) {
 	})
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(w, "CGROUP\tCORES\tQUOTA\tTHROTTLE%\tTHR_PERIODS\tMEMORY")
+	_, _ = fmt.Fprintln(w, "CGROUP\tCORES\tQUOTA\tTHROTTLE%\tTHR_PERIODS\tMEMORY")
 	for i := range min(len(samples), maxLines) {
 		cores, throttle := "-", "-"
 		s := samples[i]
@@ -69,8 +69,8 @@ func PrintSamples(samples []rate.Sample, root, sortKey string, maxLines int) {
 		if s.ThrottledPeriods > 0 {
 			periods = fmt.Sprintf("%.1f", s.ThrottledPeriods)
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			shortenPath(s.Path, root), cores, quota, throttle, periods, humanBytes(s.MemoryCurrent))
 	}
-	w.Flush()
+	_ = w.Flush()
 }

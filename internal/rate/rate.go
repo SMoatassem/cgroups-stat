@@ -17,8 +17,8 @@ type Sample struct {
 
 func ComputeRates(prev []cgroup.Record, curr []cgroup.Record) []Sample {
 	// Convert slices to maps to facilitate lookup rather than a opt for a nested loop
-	var prevMap map[string]cgroup.Record = make(map[string]cgroup.Record)
-	var currMap map[string]cgroup.Record = make(map[string]cgroup.Record)
+	prevMap := make(map[string]cgroup.Record)
+	currMap := make(map[string]cgroup.Record)
 
 	for _,v := range prev {
 		prevMap[v.AbsolutePath] = v

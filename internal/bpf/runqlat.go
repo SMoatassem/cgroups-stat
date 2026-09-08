@@ -68,7 +68,7 @@ func InitEbpfRunQ() (RunqObj, error){
 	
 	var objs runqlatObjects
 	if err := loadRunqlatObjects(&objs, nil); err != nil {
-		return RunqObj{}, fmt.Errorf("Objects loading:%v", err)
+		return RunqObj{}, fmt.Errorf("objects loading:%v", err)
 	}
 	// defer objs.Close()
 
@@ -82,7 +82,7 @@ func InitEbpfRunQ() (RunqObj, error){
 	for _, program := range(programs) {
 		l, err := link.AttachTracing(link.TracingOptions{Program: program})
 		if err != nil {
-			return RunqObj{}, fmt.Errorf("Link tracing:%v", err)
+			return RunqObj{}, fmt.Errorf("link tracing:%v", err)
 		}
 		// defer l.Close()
 		links = append(links, l)

@@ -40,11 +40,11 @@ func ParseDirectory(path string, depth int, records []Record, treeOpt bool, vOpt
 		return records
 	}
 
-	var currentRecord Record = Record{}
-	var controllers = []string{}
-	var pids = []int{}
-	var hasChildren bool = false
-	var cpuStatRecord = make(map[string]int64)
+	currentRecord := Record{}
+	controllers := []string{}
+	pids := []int{}
+	hasChildren := false
+	cpuStatRecord := make(map[string]int64)
 
 	content, err := os.ReadFile(filepath.Join(path, "/cgroup.procs"))
 

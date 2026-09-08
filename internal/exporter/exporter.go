@@ -51,8 +51,8 @@ func ExportRunQLat (w http.ResponseWriter, r *http.Request, rObjs bpf.RunqObj) (
 	if err != nil {
 		return err
 	}
-    fmt.Fprintln(w, "# HELP runqueue_latency_seconds Time tasks spent runnable before being scheduled.")
-    fmt.Fprintln(w, "# TYPE runqueue_latency_seconds histogram")
+    _, _ = fmt.Fprintln(w, "# HELP runqueue_latency_seconds Time tasks spent runnable before being scheduled.")
+    _, _ = fmt.Fprintln(w, "# TYPE runqueue_latency_seconds histogram")
 
     for cgid, arr := range mapHis {
         name, ok := index[cgid]
@@ -70,13 +70,13 @@ func ExportRunQLat (w http.ResponseWriter, r *http.Request, rObjs bpf.RunqObj) (
 			// information when we put it in a bucket
             sum += float64(arr[n]) * bound
 
-            fmt.Fprintf(w, "runqueue_latency_seconds_bucket{cgroup=%q,le=\"%g\"} %d\n",
+            _, _ = fmt.Fprintf(w, "runqueue_latency_seconds_bucket{cgroup=%q,le=\"%g\"} %d\n",
                 name, bound, cumulative)
         }
 
-        fmt.Fprintf(w, "runqueue_latency_seconds_bucket{cgroup=%q,le=\"+Inf\"} %d\n", name, cumulative)
-        fmt.Fprintf(w, "runqueue_latency_seconds_sum{cgroup=%q} %g\n", name, sum)
-        fmt.Fprintf(w, "runqueue_latency_seconds_count{cgroup=%q} %d\n", name, cumulative)
+        _, _ = fmt.Fprintf(w, "runqueue_latency_seconds_bucket{cgroup=%q,le=\"+Inf\"} %d\n", name, cumulative)
+        _, _ = fmt.Fprintf(w, "runqueue_latency_seconds_sum{cgroup=%q} %g\n", name, sum)
+        _, _ = fmt.Fprintf(w, "runqueue_latency_seconds_count{cgroup=%q} %d\n", name, cumulative)
     }
 
     return nil
@@ -94,53 +94,53 @@ func ExportMetrics (w http.ResponseWriter, r *http.Request) {
 	for _, field := range(fields) {
 		switch field {
 			case "MemoryCurrent": 
-				fmt.Fprintf(w, "# HELP cgstat_memory_usage_current_bytes Current memory usage in bytes\n")
-				fmt.Fprintf(w, "# TYPE cgstat_memory_usage_current_bytes gauge\n")
+				_, _ = fmt.Fprintf(w, "# HELP cgstat_memory_usage_current_bytes Current memory usage in bytes\n")
+				_, _ = fmt.Fprintf(w, "# TYPE cgstat_memory_usage_current_bytes gauge\n")
 			case "usageUsec":
-				fmt.Fprintf(w, "# HELP cgstat_cpu_usage_seconds_total Current CPU usage in seconds\n")
-				fmt.Fprintf(w, "# TYPE cgstat_cpu_usage_seconds_total counter\n")
+				_, _ = fmt.Fprintf(w, "# HELP cgstat_cpu_usage_seconds_total Current CPU usage in seconds\n")
+				_, _ = fmt.Fprintf(w, "# TYPE cgstat_cpu_usage_seconds_total counter\n")
 			case "throttledUsec":
-				fmt.Fprintf(w, "# HELP cgstat_cpu_throttled_seconds_total Current CPU throttle in seconds\n")
-				fmt.Fprintf(w, "# TYPE cgstat_cpu_throttled_seconds_total counter\n")
+				_, _ = fmt.Fprintf(w, "# HELP cgstat_cpu_throttled_seconds_total Current CPU throttle in seconds\n")
+				_, _ = fmt.Fprintf(w, "# TYPE cgstat_cpu_throttled_seconds_total counter\n")
 
 			case "nrThrottled":
-				fmt.Fprintf(w, "# HELP cgstat_cpu_throttled_periods_total Current CPU throttle periods\n")
-				fmt.Fprintf(w, "# TYPE cgstat_cpu_throttled_periods_total counter\n")
+				_, _ = fmt.Fprintf(w, "# HELP cgstat_cpu_throttled_periods_total Current CPU throttle periods\n")
+				_, _ = fmt.Fprintf(w, "# TYPE cgstat_cpu_throttled_periods_total counter\n")
 			case "nrPeriods": 
-				fmt.Fprintf(w, "# HELP cgstat_cpu_periods_total Current CPU periods\n")
-				fmt.Fprintf(w, "# TYPE cgstat_cpu_periods_total counter\n")
+				_, _ = fmt.Fprintf(w, "# HELP cgstat_cpu_periods_total Current CPU periods\n")
+				_, _ = fmt.Fprintf(w, "# TYPE cgstat_cpu_periods_total counter\n")
 		}
 		for _, record := range(records) {
 			switch field {
 				case "MemoryCurrent":
-					fmt.Fprintf(w, "cgstat_memory_usage_current_bytes{cgroup=%q} %v\n", record.AbsolutePath, record.MemoryCurrent)
+					_, _ = fmt.Fprintf(w, "cgstat_memory_usage_current_bytes{cgroup=%q} %v\n", record.AbsolutePath, record.MemoryCurrent)
 
 				case "usageUsec":
 					value, ok := record.CpuStat["usageUsec"]
 					if ok {
-						fmt.Fprintf(w, "cgstat_cpu_usage_seconds_total{cgroup=%q} %f\n", record.AbsolutePath, float64(value)/float64(1_000_000))
+						_, _ = fmt.Fprintf(w, "cgstat_cpu_usage_seconds_total{cgroup=%q} %f\n", record.AbsolutePath, float64(value)/float64(1_000_000))
 					}
 					
 				case "throttledUsec":
 					value , ok := record.CpuStat["throttledUsec"]
 					if ok {
-						fmt.Fprintf(w, "cgstat_cpu_throttled_seconds_total{cgroup=%q} %f\n", record.AbsolutePath, float64(value)/float64(1_000_000))	
+						_, _ = fmt.Fprintf(w, "cgstat_cpu_throttled_seconds_total{cgroup=%q} %f\n", record.AbsolutePath, float64(value)/float64(1_000_000))	
 					}
 				
 				case "nrThrottled":
 					value, ok := record.CpuStat["nrThrottled"]
 					if ok {
-						fmt.Fprintf(w, "cgstat_cpu_throttled_periods_total{cgroup=%q} %v\n", record.AbsolutePath, value)
+						_, _ = fmt.Fprintf(w, "cgstat_cpu_throttled_periods_total{cgroup=%q} %v\n", record.AbsolutePath, value)
 					}
 					
 				case "nrPeriods":
 					value, ok := record.CpuStat["nrPeriods"]
 					if ok {
-						fmt.Fprintf(w, "cgstat_cpu_periods_total{cgroup=%q} %v\n", record.AbsolutePath, value)
+						_, _ = fmt.Fprintf(w, "cgstat_cpu_periods_total{cgroup=%q} %v\n", record.AbsolutePath, value)
 					}
 			}
 		}
-		fmt.Fprintf(w, "\n")
+		_, _ = fmt.Fprintf(w, "\n")
 	}
 }
 
@@ -149,5 +149,5 @@ func ExporterWrapper(w http.ResponseWriter, r *http.Request, rObjs bpf.RunqObj) 
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 
 	ExportMetrics(w, r)
-	ExportRunQLat(w, r, rObjs)
+	_ = ExportRunQLat(w, r, rObjs)
 }

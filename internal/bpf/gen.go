@@ -18,7 +18,7 @@ type Event struct {
 	Comm [16]byte
 }
 
-func gen() {
+func _() {
 
 	if err := rlimit.RemoveMemlock(); err != nil {
 		log.Fatal(err)
@@ -28,20 +28,36 @@ func gen() {
 	if err := loadExecObjects(&objs, nil); err != nil {
 		log.Fatalf("Objects loading error %v", err)
 	}
-	defer objs.Close()
+
+	defer func() {
+		if err := objs.Close(); err != nil {
+			log.Printf("failed to close Object: %v", err)
+		}
+	}()
+
 
 
 	tp, err := link.Tracepoint("syscalls", "sys_exit_execve", objs.HandleExecve, nil)
 	if err != nil {
 		log.Fatalf("Tracepoint linking error : %v", err)
 	}
-	defer tp.Close()
+	defer func() {
+		if err := tp.Close(); err != nil {
+			log.Printf("failed to close Tracepoint: %v", err)
+		}
+	}()
+
 
 	rd, err := ringbuf.NewReader(objs.Rb)
 	if err != nil {
 		log.Fatalf("Reader Initialization error: %v" , err)
 	}
-	defer rd.Close()
+
+	defer func() {
+		if err := rd.Close(); err != nil {
+			log.Printf("failed to close ringbuf: %v", err)
+		}
+	}()
 
 	fmt.Printf("Listening for execve..")
 
