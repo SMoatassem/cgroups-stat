@@ -15,7 +15,14 @@ jobs:
         with:
           go-version: '1.24.6'
 
-      - run: go test -race ./...
+      - name: Install clang
+        run: sudo apt-get update && sudo apt-get install -y clang llvm
+
+      - name: Generate eBPF bindings
+        run: go generate ./...
+
+      - name: test go code
+        run: go test -race ./...
 
 
   lint:
