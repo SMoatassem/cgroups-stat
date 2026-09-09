@@ -35,7 +35,7 @@ scrape_configs:
     # scheme defaults to 'http'.
 
     static_configs:
-      - targets: ['cgroups-stat:9100']
+      - targets: ['cgroups-stat:9101']
 
   - job_name: node
     # If prometheus-node-exporter is installed, grab stats about the local
