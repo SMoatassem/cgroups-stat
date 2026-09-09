@@ -1,6 +1,8 @@
 # cgroups-stat
 
-A CLI tool that reads cgroup v2 to surface CPU throttling — the failure mode standard dashboards miss.
+An observability tool for Linux CPU contention. Reads cgroup v2 to surface
+throttling — the failure mode standard dashboards miss — and adds an eBPF
+runqueue-latency probe to catch the cases cgroup counters structurally cannot see.
 
 ## The problem
 
@@ -116,7 +118,7 @@ stat -fc %T /sys/fs/cgroup
 ## Prometheus exporter
 
 ```bash
-cgroups-stat -prom          # serves /metrics on :9100
+cgroups-stat -prom          # serves /metrics on :9101
 ```
 
 Exposes raw cumulative counters; rates are computed server-side by Prometheus
@@ -142,6 +144,75 @@ A `docker-compose.yml` brings up the exporter, Prometheus and Grafana together.
 The exporter requires `cgroup: host` — Docker's cgroup namespace otherwise
 rewrites the container's own cgroup as the root of the hierarchy, so the
 exporter sees only itself.
+
+## Runqueue latency (eBPF)
+
+Cgroup counters are sampled aggregates. They tell you *that* something
+happened, not *when*, *how long each time*, or *who was waiting*. One class of
+problem falls through entirely: a container whose throttled fraction is zero
+but whose tail latency is terrible.
+
+The cause is contention rather than quota. The pod is not hitting its own
+limit — it is waiting behind other tasks for a CPU. Nothing in `cpu.stat`
+records that wait, because from the cgroup's point of view nothing happened.
+
+`cgroups-stat` attaches three eBPF programs to measure it directly:
+
+| program | hook | role |
+|---|---|---|
+| `add_to_map` | `tp_btf/sched_wakeup` | stamp the time a task became runnable |
+| `add_to_map_new` | `tp_btf/sched_wakeup_new` | same, for newly forked tasks |
+| `fill_hist` | `tp_btf/sched_switch` | on schedule-in, compute the wait and bucket it |
+
+The wait is aggregated **in the kernel** into a log2 histogram keyed by
+`{cgroup_id, bucket}`.
+
+`tp_btf` rather than classic tracepoints, because classic tracepoints expose
+only flattened scalar fields — no `task_struct`, so no route to the cgroup.
+
+```
+runqueue_latency_seconds_bucket{cgroup="/system.slice/nginx.service",le="5e-07"} 216386
+runqueue_latency_seconds_sum{cgroup="/system.slice/nginx.service"} 0.412
+runqueue_latency_seconds_count{cgroup="/system.slice/nginx.service"} 267000
+```
+
+Both layers label series with the same cgroup path, so the two can be joined
+in a single query.
+
+
+### Validation
+
+The histogram's total wait time was compared against
+`node_schedstat_waiting_seconds_total`, the kernel's own per-CPU runqueue
+accounting from `/proc/schedstat`, exported by `node_exporter`:
+
+```promql
+sum(rate(runqueue_latency_seconds_sum[5m]))         # 0.0338
+sum(rate(node_schedstat_waiting_seconds_total[5m])) # 0.0341
+```
+
+Two entirely independent measurement paths — one maintained by the scheduler,
+one built here — agreeing within about 1% on an idle host.
+
+### Requirements
+
+The eBPF layer needs more than the cgroup reader:
+
+- Linux 5.5+ with BTF at `/sys/kernel/btf/vmlinux`
+- `CAP_BPF` and `CAP_PERFMON` — not full `privileged` 
+
+Building from source additionally needs `clang`, `llvm` and `libbpf-dev`, since
+the generated bindings are not committed:
+
+```bash
+sudo apt-get install -y clang llvm libbpf-dev
+go generate ./...
+go build ./...
+```
+
+`vmlinux.h` *is* committed. CO-RE resolves field offsets at load time from the
+running kernel's BTF, so the header only has to satisfy the compiler — the
+kernel it was dumped from need not match the kernel that runs the probe.
 
 ## Kubernetes
 
